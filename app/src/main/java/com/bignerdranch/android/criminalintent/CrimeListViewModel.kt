@@ -5,37 +5,29 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import java.util.*
 
 private const val TAG = "CrimeListViewModel"
 class CrimeListViewModel : ViewModel(){
-    val crimes =  mutableListOf<Crime>()
+    private val crimeRepository = CrimeRepository.get()
 
+    //StateFlows are similar to flows except they cache the last sent state to avoid db calls (config changes destroy fragments and call collect again)
+    //We don't want consumers of our flow to be able to modify anything in the flow hence we protect
+    //our internal mutable copy by returning a non-mutable stateflow version of it
+    private val _crimes : MutableStateFlow<List<Crime>> = MutableStateFlow(emptyList())
+    val crimes: StateFlow<List<Crime>>
+        get() = _crimes.asStateFlow()
     init {
-        Log.d(TAG, "init starting")
         viewModelScope.launch {
-            Log.d(TAG, "coroutine starting")
-            crimes += loadCrimes()
-            Log.d(TAG, "Loading crimes finished")
+            //Whenever our flow has a new value we collect it and put into our MutableStateFlow
+            crimeRepository.getCrimes().collect() {
+                _crimes.value = it
+            }
         }
-    }
-
-    //a suspend function is a function that is allowed to be paused so the thread can go do something else
-    //while blocked. They can only be ran inside of coroutine scopes
-    suspend fun loadCrimes() : List<Crime> {
-        val result = mutableListOf<Crime>()
-        delay(5000)
-        for (i in 0 until 100) {
-            val crime = Crime(
-                id = UUID.randomUUID(),
-                title = "Crime #$i",
-                date = Date(),
-                isSolved = i % 2 == 0
-            )
-            //This syntax ❤❤❤
-            result += crime
-        }
-        return result
     }
 }

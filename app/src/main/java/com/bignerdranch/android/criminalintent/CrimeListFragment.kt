@@ -13,6 +13,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bignerdranch.android.criminalintent.databinding.FragmentCrimeListBinding
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 private const val TAG = "CrimeListFragment"
@@ -50,8 +51,10 @@ class CrimeListFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             //note how this code will continue to run into resumed if it must
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                val crimes = crimeListViewModel.loadCrimes()
-                binding.crimeRecyclerView.adapter = CrimeListAdapter(crimes)
+                //Whenever the db changes it sends an update crimelist. This happens for as long as fragment is on the stream
+                crimeListViewModel.crimes.collect() { crimes ->
+                    binding.crimeRecyclerView.adapter = CrimeListAdapter(crimes)
+                }
             }
         }
     }
